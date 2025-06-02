@@ -5,7 +5,7 @@ export const ROUTE_REGISTER = "/register"
 export const ROUTE_DASHBOARD = "/dashboard"
 
 // Backend API Endpoints
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://snipstash-gezt.onrender.com/api';
 export const AUTH_PREFIX = '/auth';
 export const USER_PREFIX = '/user'
 export const FOLDERS_PREFIX = '/folders';
