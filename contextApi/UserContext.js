@@ -55,7 +55,7 @@ export const UserContextProvider = ({ children }) => {
   const register = async (obj) => {
     try {
       const result = await fetchApi({
-        url: `${API_BASE_URL}${AUTH_PREFIX}${API_ENDPOINTS.register}`,
+        url: '/api/auth/register', // Call the new Next.js API route
         method: 'POST',
         body: obj,
       })
@@ -94,7 +94,7 @@ export const UserContextProvider = ({ children }) => {
     // setLoading(true)
     try {
       const result = await fetchApi({
-        url: `${API_BASE_URL}${AUTH_PREFIX}${API_ENDPOINTS.login}`,
+        url: '/api/auth/login', // Call the new Next.js API route
         method: 'POST',
         body: obj,
       })
