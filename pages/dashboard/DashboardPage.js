@@ -1,5 +1,5 @@
 "use client"
-import React, { useEffect } from "react"
+import React, { useEffect, useState } from "react"
 import { useRouter } from 'next/navigation';
 import CreateFolderAndSnippet from './components/CreateFolderAndSnippet'
 import FolderList from './components/FolderList'
@@ -30,13 +30,37 @@ export default function DashboardPage() {
     closeAddFolderModal,
     handleCreateFolder,
     isAddSnippetModalOpen,
-    openAddSnippetModal,
-    closeAddSnippetModal,
+    openAddSnippetModal: contextOpenAddSnippetModal,
+    closeAddSnippetModal: contextCloseAddSnippetModal,
     handleCreateSnippet,
+    handleUpdateSnippet,
+    filterType,
+    handleFilterTypeChange,
   } = useDashboardContext();
 
   const { isLoggedIn, loading } = useUserContext();
   const router = useRouter();
+
+  // State to manage which snippet is being edited
+  const [editingSnippet, setEditingSnippet] = useState(null);
+
+  // Handler to open the Add/Edit Snippet Modal in create mode
+  const openAddSnippetModal = () => {
+    setEditingSnippet(null); // Ensure no snippet is being edited when creating
+    contextOpenAddSnippetModal();
+  };
+
+  // Handler to open the Add/Edit Snippet Modal in edit mode
+  const handleEditSnippet = (snippet) => {
+    setEditingSnippet(snippet); // Set the snippet to be edited
+    contextOpenAddSnippetModal();
+  };
+
+  // Handler to close the Add/Edit Snippet Modal and reset editing state
+  const closeAddSnippetModal = () => {
+    contextCloseAddSnippetModal();
+    setEditingSnippet(null); // Reset editing state on close
+  };
 
   // Effect to check authentication status once on mount
   // useEffect(() => {
@@ -88,14 +112,31 @@ export default function DashboardPage() {
 
           {/* Right Column / Main Content Area (Search & Snippets) */}
           <div className="md:col-span-2 flex flex-col">
-            <SearchInput searchTerm={searchTerm} onSearchChange={handleSearchChange} />
+            {/* Search Input and Filter Selection */}
+            <div className="flex gap-4 items-center mb-6">
+              <div className="flex-grow">
+                <SearchInput searchTerm={searchTerm} onSearchChange={handleSearchChange} />
+              </div>
+              <div className="w-1/4">
+                 <select
+                   className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
+                   value={filterType}
+                   onChange={(e) => handleFilterTypeChange(e.target.value)}
+                 >
+                   <option value="all">All</option>
+                   <option value="tag">Tag</option>
+                   <option value="language">Language</option>
+                   <option value="usage">Usage (Copy Count)</option>
+                 </select>
+              </div>
+            </div>
 
             {/* Placeholder for Snippet List */}
             <div className="mt-6">
                <h2 className="text-xl font-bold text-white mb-4">
                  {selectedFolder ? `Snippets in '${selectedFolder.name}'` : 'All Snippets'}
                </h2>
-               <SnippetList snippets={filteredSnippets} onDeleteSnippet={handleDeleteSnippet} />
+               <SnippetList snippets={filteredSnippets} onDeleteSnippet={handleDeleteSnippet} onEditSnippet={handleEditSnippet} />
             </div>
 
           </div>
@@ -111,6 +152,8 @@ export default function DashboardPage() {
         onClose={closeAddSnippetModal}
         onCreate={handleCreateSnippet}
         folders={userFolders}
+        editingSnippet={editingSnippet}
+        onUpdate={handleUpdateSnippet}
       />
     </div>
   )

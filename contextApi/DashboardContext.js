@@ -30,7 +30,7 @@ export const DashboardContextProvider = ({ children }) => {
   // Move state and logic from DashboardPage.js here
 
   const { fetchApi, loading: fetchLoading, error: fetchError } = useFetchApi();
-  const { user, isLoggedIn } = useUserContext(); // Get user and isLoggedIn from UserContext
+  const { user, isLoggedIn, setLoading } = useUserContext(); // Get user, isLoggedIn, and setLoading from UserContext
 
   // State for snippets and folders
   const [snippets, setSnippets] = useState([]); // Initialize with empty array, will fetch
@@ -39,6 +39,8 @@ export const DashboardContextProvider = ({ children }) => {
   // State for selected folder and search term
   const [selectedFolder, setSelectedFolder] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  // State for selected filter type
+  const [filterType, setFilterType] = useState('all'); // 'all', 'tag', 'language', 'usage'
 
   // State for modals
   const [isAddFolderModalOpen, setIsAddFolderModalOpen] = useState(false);
@@ -101,10 +103,12 @@ export const DashboardContextProvider = ({ children }) => {
             if (result) {
                 console.log('Snippets fetched successfully:', result);
                 // Assuming the API returns a list of snippets
-                // Process snippets to convert tags string to array
+                // Process snippets to convert tags string to array and format timestamps
                 const processedSnippets = result.map(snippet => ({
                     ...snippet,
-                    tags: typeof snippet.tags === 'string' && snippet.tags !== '' ? snippet.tags.split(',').map(tag => tag.trim()) : []
+                    tags: typeof snippet.tags === 'string' && snippet.tags !== '' ? snippet.tags.split(',').map(tag => tag.trim()) : [],
+                    createdAt: snippet.createdAt ? new Date(snippet.createdAt).toLocaleString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).replace(/(\d{2})\/(\d{2})\/(\d{4}), (\d{2}):(\d{2}):(\d{2})/,'$3-$1-$2 $4:$5:$6') : null, // Format createdAt if exists
+                    updatedAt: snippet.updatedAt ? new Date(snippet.updatedAt).toLocaleString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).replace(/(\d{2})\/(\d{2})\/(\d{4}), (\d{2}):(\d{2}):(\d{2})/,'$3-$1-$2 $4:$5:$6') : null, // Format updatedAt if exists
                 }));
                 setSnippets(processedSnippets);
                 // TODO: Update snippetCount for folders based on fetched snippets
@@ -135,7 +139,7 @@ export const DashboardContextProvider = ({ children }) => {
           // Regular folders
           const folderSnippets = snippets.filter(snippet =>
              // Check if the snippet's folders array includes the current folder's ID
-             snippet.folders && snippet.folders.includes(folder.id)
+             snippet.folderId && snippet.folderId.includes(folder.id)
           );
           return {
             ...folder,
@@ -153,18 +157,41 @@ export const DashboardContextProvider = ({ children }) => {
     }
   }, [snippets, userFolders]); // Depend on snippets and userFolders
 
-  // Filter snippets based on selected folder and search term
+  // Filter snippets based on selected folder, filter type, and search term
   const filteredSnippets = useMemo(() => {
+    const lowerCaseSearchTerm = searchTerm.toLowerCase();
+
     return snippets.filter(snippet => {
-      const matchesFolder = selectedFolder === null || (snippet.folders && snippet.folders.includes(selectedFolder.id));
-      const matchesSearch = searchTerm.toLowerCase() === '' ||
-                            snippet.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            snippet.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            (snippet.tags && snippet.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))) ||
-                            snippet.language.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesFolder = selectedFolder === null || (snippet.folderId && snippet.folderId.includes(selectedFolder.id));
+
+      let matchesSearch = true;
+      if (lowerCaseSearchTerm !== '') {
+        switch (filterType) {
+          case 'tag':
+            matchesSearch = snippet.tags && snippet.tags.some(tag => tag.toLowerCase().includes(lowerCaseSearchTerm));
+            break;
+          case 'language':
+            matchesSearch = snippet.language.toLowerCase().includes(lowerCaseSearchTerm);
+            break;
+          case 'usage':
+            // For usage, let's assume searching for an exact number for now
+            // You might want to implement range filtering later
+            matchesSearch = snippet.copyCount !== undefined && snippet.copyCount.toString() === lowerCaseSearchTerm;
+            break;
+          case 'all':
+          default:
+            // Original 'all' search behavior
+            matchesSearch = snippet.title.toLowerCase().includes(lowerCaseSearchTerm) ||
+                            snippet.code.toLowerCase().includes(lowerCaseSearchTerm) ||
+                            (snippet.tags && snippet.tags.some(tag => tag.toLowerCase().includes(lowerCaseSearchTerm))) ||
+                            snippet.language.toLowerCase().includes(lowerCaseSearchTerm);
+            break;
+        }
+      }
+
       return matchesFolder && matchesSearch;
     });
-  }, [snippets, selectedFolder, searchTerm]);
+  }, [snippets, selectedFolder, searchTerm, filterType]); // Add filterType as a dependency
 
   const handleFolderSelect = (folder) => {
     if (folder.id === null) {
@@ -180,6 +207,13 @@ export const DashboardContextProvider = ({ children }) => {
     setSearchTerm(term);
     // Optionally clear selected folder when searching
     // setSelectedFolder(null);
+  };
+
+  // Handler for changing filter type
+  const handleFilterTypeChange = (type) => {
+    setFilterType(type);
+    // Optionally clear search term when changing filter type
+    // setSearchTerm('');
   };
 
   // Handlers for modals
@@ -199,8 +233,12 @@ export const DashboardContextProvider = ({ children }) => {
     }
 
     const { folderId, title, language, code, manualTags } = snippetData;
+    // if(!folderId) {
+    //   alert('Missing folder ID. first Please create a folder');
+    //   return;
+    // }
 
-    if (!folderId || !title || !language || !code) {
+    if (!title || !language || !code) {
       console.error('Missing required snippet data.', { folderId, title, language, code });
       return;
     }
@@ -221,6 +259,7 @@ export const DashboardContextProvider = ({ children }) => {
     console.log('Sending snippet creation request to Next.js API route with data:', snippetToCreate);
 
     try {
+      setLoading(true); // Set loading to true before API call
       // Call the new Next.js API route for creating a snippet
       const result = await fetchApi({
         url: '/api/snippets/create', // Call the new Next.js API route
@@ -236,8 +275,9 @@ export const DashboardContextProvider = ({ children }) => {
         const createdSnippet = {
           ...snippetToCreate,
           id:result,
-          tags: typeof snippetToCreate.tags === 'string' && snippetToCreate.tags !== '' ? snippetToCreate.tags.split(',').map(tag => tag.trim()) : []
-
+          tags: typeof snippetToCreate.tags === 'string' && snippetToCreate.tags !== '' ? snippetToCreate.tags.split(',').map(tag => tag.trim()) : [],
+          createdAt: new Date().toLocaleString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).replace(/(\d{2})\/(\d{2})\/(\d{4}), (\d{2}):(\d{2}):(\d{2})/,'$3-$1-$2 $4:$5:$6'), // Format createdAt to human-readable string
+          updatedAt: new Date().toLocaleString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).replace(/(\d{2})\/(\d{2})\/(\d{4}), (\d{2}):(\d{2}):(\d{2})/,'$3-$1-$2 $4:$5:$6'), // Format updatedAt to human-readable string
         };
 
         // Add the new snippet to the state
@@ -249,6 +289,72 @@ export const DashboardContextProvider = ({ children }) => {
     } catch (error) {
       console.error('Error creating snippet:', error);
       // Optionally show an error message to the user
+    } finally {
+      setLoading(false); // Set loading to false after API call (success or error)
+    }
+  };
+
+  // Handler to update an existing snippet
+  const handleUpdateSnippet = async (snippetId, updatedSnippetData) => {
+    console.log(`Attempting to update snippet with ID: ${snippetId}`);
+    console.log('Updated data:', updatedSnippetData);
+
+    if (!user || !user.token) {
+      console.error("User not authenticated. Cannot update snippet.");
+      return;
+    }
+
+    // Generate the tags string from potentially updated code and manual tags
+    const tagsString = generateTagsString(updatedSnippetData.code, updatedSnippetData.manualTags);
+    console.log('Generated tags string for update:', tagsString);
+
+    // Prepare the data to send to the API
+    const apiPayload = {
+      ...updatedSnippetData,
+      id: snippetId,
+      tags: tagsString, // Ensure tags are sent as a comma-separated string
+    };
+
+    try {
+      setLoading(true); // Set loading to true before API call
+
+      // Call the new Next.js API route for updating a snippet
+      const result = await fetchApi({
+        url: `/api/snippets/${snippetId}`, // Call the new Next.js API route with ID
+        method: 'PUT',
+        token: user.token,
+        body: apiPayload, // Send the prepared payload
+      });
+
+      // Assuming the Next.js API route returns the updated snippet object or a success indicator
+      console.log('Snippet updated successfully via API route:', result);
+
+      // Update the snippets state with the updated snippet
+      // Assuming 'result' contains the updated snippet data from the backend
+      setSnippets(prevSnippets =>
+        prevSnippets.map(snippet =>
+          snippet.id === snippetId ? {
+            ...snippet,
+            ...updatedSnippetData, // Use the data passed to the handler (excluding manualTags)
+            // Update tags from the tagsString we generated and sent
+            tags: tagsString.split(',').map(tag => tag.trim()).filter(tag => tag !== ''), // Convert tags string back to array for local state
+            // Optionally update other fields from 'result' if the backend returns them
+            updatedAt: new Date().toLocaleString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).replace(/(\d{2})\/(\d{2})\/(\d{4}), (\d{2}):(\d{2}):(\d{2})/,'$3-$1-$2 $4:$5:$6'), // Update updatedAt timestamp locally
+          } : snippet
+        )
+      );
+      closeAddSnippetModal();
+
+      // Optionally show a success message
+      // e.g., toast.success('Snippet updated successfully!');
+
+    } catch (error) {
+      console.error(`Error updating snippet with ID ${snippetId}:`, error);
+      // fetchApi already handled the error logging and state update
+      // Optionally show an error message to the user
+      // e.g., toast.error('Failed to update snippet.');
+    } finally {
+      setLoading(false); // Set loading to false after API call (success or error)
     }
   };
 
@@ -262,6 +368,7 @@ export const DashboardContextProvider = ({ children }) => {
     }
 
     try {
+      setLoading(true); // Set loading to true before API call
       // Call the new Next.js API route for deleting a snippet
       const result = await fetchApi({
         url: `/api/snippets/${snippetId}`, // Call the new Next.js API route with ID
@@ -281,6 +388,8 @@ export const DashboardContextProvider = ({ children }) => {
       console.error('Error deleting snippet via API route:', error);
       // fetchApi already handled the error logging and state update
       // Optionally show a user-friendly error message here
+    } finally {
+      setLoading(false); // Set loading to false after API call (success or error)
     }
   };
 
@@ -294,6 +403,7 @@ export const DashboardContextProvider = ({ children }) => {
     }
 
     try {
+      setLoading(true); // Set loading to true before API call
       const result = await fetchApi({
         url: '/api/folders/create', // Call the new Next.js API route
         method: 'POST',
@@ -327,6 +437,8 @@ export const DashboardContextProvider = ({ children }) => {
       console.error('Error creating folder via API route:', error);
       // fetchApi already handled the error logging and state update
       // Optionally show a user-friendly error message here
+    } finally {
+      setLoading(false); // Set loading to false after API call (success or error)
     }
   };
 
@@ -345,6 +457,7 @@ export const DashboardContextProvider = ({ children }) => {
     }
 
     try {
+      setLoading(true); // Set loading to true before API call
       // Call the new Next.js API route for deleting a folder
       const result = await fetchApi({
         url: `/api/folders/${folderId}`, // Call the new Next.js API route with ID
@@ -368,6 +481,8 @@ export const DashboardContextProvider = ({ children }) => {
       console.error('Error deleting folder via API route:', error);
       // fetchApi already handled the error logging and state update
       // Optionally show a user-friendly error message here
+    } finally {
+      setLoading(false); // Set loading to false after API call (success or error)
     }
   };
 
@@ -382,6 +497,7 @@ export const DashboardContextProvider = ({ children }) => {
     }
 
     try {
+      setLoading(true); // Set loading to true before API call
       // Call the new Next.js API route for increasing copy count
       const result = await fetchApi({
         url: `/api/snippets/${snippetId}/increasecopycount`, // Call the new Next.js API route with ID
@@ -390,10 +506,14 @@ export const DashboardContextProvider = ({ children }) => {
       });
 
      
-        // Update the local state to increment the copy count
+        // Update the local state to increment the copy count and update the timestamp
         setSnippets(prevSnippets =>
           prevSnippets.map(snippet =>
-            snippet.id === snippetId ? { ...snippet, copyCount: snippet.copyCount + 1 } : snippet
+            snippet.id === snippetId ? { 
+              ...snippet, 
+              copyCount: snippet.copyCount + 1,
+              updatedAt: new Date().toLocaleString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).replace(/(\d{2})\/(\d{2})\/(\d{4}), (\d{2}):(\d{2}):(\d{2})/,'$3-$1-$2 $4:$5:$6'), // Update updatedAt
+            } : snippet
           )
         );
 
@@ -404,6 +524,8 @@ export const DashboardContextProvider = ({ children }) => {
       console.error('Error increasing snippet copy count via API route:', error);
       // fetchApi already handled the error logging and state update
       // Optionally show a user-friendly error message here
+    } finally {
+      setLoading(false); // Set loading to false after API call (success or error)
     }
   };
 
@@ -426,8 +548,11 @@ export const DashboardContextProvider = ({ children }) => {
     openAddSnippetModal,
     closeAddSnippetModal,
     handleCreateSnippet,
-    handleIncreaseCopyCount, // Add the new handler to the context value
-  }), [userFolders, snippets, selectedFolder, searchTerm, filteredSnippets, handleDeleteSnippet, handlePinFolder, handleDeleteFolder, isAddFolderModalOpen, openAddFolderModal, closeAddFolderModal, handleCreateFolder, isAddSnippetModalOpen, openAddSnippetModal, closeAddSnippetModal, handleCreateSnippet, handleIncreaseCopyCount]);
+    handleIncreaseCopyCount,
+    handleUpdateSnippet,
+    filterType, // Expose filterType
+    handleFilterTypeChange, // Expose handler
+  }), [userFolders, snippets, selectedFolder, searchTerm, filteredSnippets, handleDeleteSnippet, handlePinFolder, handleDeleteFolder, isAddFolderModalOpen, openAddFolderModal, closeAddFolderModal, handleCreateFolder, isAddSnippetModalOpen, openAddSnippetModal, closeAddSnippetModal, handleCreateSnippet, handleIncreaseCopyCount, handleUpdateSnippet, filterType, handleFilterTypeChange]); // Add filterType and its handler as dependencies
 
   return (
     <DashboardContext.Provider value={contextValue}>

@@ -22,4 +22,7 @@ public interface SnippetRepository {
 
     // Method to update snippet copy count and updated date
     int updateCopyCount(Integer id);
+
+    // Method to update a snippet
+    int update(Snippet snippet, String userEmail);
 } 

@@ -24,5 +24,6 @@ export const API_ENDPOINTS = {
   createSnippet: '/create',
   deleteSnippet: '/delete',
   getAllSnippets: '/all',
+  updateSnippet: '/update',
   // Add other endpoints here
 }; 

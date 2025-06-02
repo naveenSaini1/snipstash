@@ -18,4 +18,7 @@ public interface SnippetService {
 
     // Method to increase snippet copy count
     ResponseModel<String> increaseSnippetCopyCount(Integer id) throws MyCustomeException;
+
+    // Method to update a snippet
+    ResponseModel<String> updateSnippet(Integer id, Snippet updatedSnippet) throws MyCustomeException;
 } 

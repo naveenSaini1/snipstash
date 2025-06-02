@@ -1,6 +1,6 @@
 "use client"
 import React, { useState } from 'react'
-import { Copy, Tag, CalendarDays, Clock, Trash2, ChevronDown, ChevronUp } from 'lucide-react'
+import { Copy, Tag, CalendarDays, Clock, Trash2, ChevronDown, ChevronUp, Pencil } from 'lucide-react'
 import { Light as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs'
 import { useDashboardContext } from '@/contextApi/DashboardContext';
@@ -38,10 +38,16 @@ const tagColors = [
  * @param {string} props.snippets.lastUsed - The last used date of the snippet.
  * @param {number} props.snippets.copyCount - The number of times the snippet has been copied.
  * @param {function} props.onDeleteSnippet - Handler for when a snippet delete button is clicked.
+ * @param {function} props.onEditSnippet - Handler for when a snippet edit button is clicked.
  */
-function SnippetList({ snippets, onDeleteSnippet }) {
+function SnippetList({ snippets, onDeleteSnippet, onEditSnippet }) {
   const [expandedSnippets, setExpandedSnippets] = useState({});
-  const { handleIncreaseCopyCount } = useDashboardContext();
+  // State to track which snippet's tags are being edited
+  const [editingSnippetId, setEditingSnippetId] = useState(null);
+  // State to hold the tag input value during editing
+  const [tagInputValue, setTagInputValue] = useState('');
+
+  const { handleIncreaseCopyCount, handleUpdateSnippet } = useDashboardContext();
 
   const handleCopyClick = (snippet) => {
     navigator.clipboard.writeText(snippet.code)
@@ -62,6 +68,28 @@ function SnippetList({ snippets, onDeleteSnippet }) {
     }));
   };
 
+  // Function to start editing tags
+  const handleEditTags = (snippet) => {
+    setEditingSnippetId(snippet.id);
+    setTagInputValue(snippet.tags.join(', ')); // Initialize input with current tags
+  };
+
+  // Function to save edited tags
+  const handleSaveTags = async (snippetId, currentSnippet) => {
+    const updatedTags = tagInputValue.split(',').map(tag => tag.trim()).filter(tag => tag !== '');
+    // Call the update snippet function with the new tags, preserving other data
+    await handleUpdateSnippet(snippetId, { ...currentSnippet, manualTags: updatedTags,createdAt:null,updatedAt:null });
+    // Exit editing mode
+    setEditingSnippetId(null);
+    setTagInputValue('');
+  };
+
+  // Function to cancel editing
+  const handleCancelEdit = () => {
+    setEditingSnippetId(null);
+    setTagInputValue('');
+  };
+
   return (
     <div className="grid grid-cols-1 gap-4">
       {snippets.length > 0 ? (
@@ -69,11 +97,23 @@ function SnippetList({ snippets, onDeleteSnippet }) {
           const isExpanded = !!expandedSnippets[snippet.id];
           const linesOfCode = snippet.code.split('\n');
           const isTruncated = linesOfCode.length > 5 && !isExpanded;
+          const isEditing = editingSnippetId === snippet.id;
 
           return (
             <div key={snippet.id} className="bg-gray-800 p-4 rounded-lg border border-gray-700 shadow-sm relative">
-              {/* Copy and Delete buttons positioned absolutely */}
+              {/* Copy, Edit, and Delete buttons positioned absolutely */}
               <div className="absolute top-2 right-2 flex gap-2 z-10">
+                {/* Edit button */}
+                {onEditSnippet && (
+                  <button
+                    className="p-1 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm transition-colors"
+                    onClick={() => onEditSnippet(snippet)}
+                    aria-label="Edit snippet"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                )}
+                {/* Copy button */}
                 <button
                   className="p-1 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm transition-colors"
                   onClick={() => handleCopyClick(snippet)}
@@ -125,19 +165,49 @@ function SnippetList({ snippets, onDeleteSnippet }) {
                 </button>
               )}
 
+              {/* Tags Section */}
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-xs bg-blue-600 text-white px-2 py-1 rounded">{snippet.language}</span>
-                {snippet.tags && snippet.tags.map((tag, index) => (
-                  <span key={tag} className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${tagColors[index % tagColors.length]}`}>
-                     <Tag className="w-3 h-3" />{tag}
-                  </span>
-                ))}
+                {isEditing ? (
+                  // Editable tags input
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <input
+                      type="text"
+                      value={tagInputValue}
+                      onChange={(e) => setTagInputValue(e.target.value)}
+                      className="flex-grow p-1 text-sm bg-gray-700 text-white rounded border border-gray-600 focus:outline-none focus:border-blue-500"
+                      placeholder="Enter tags separated by commas"
+                    />
+                    <button
+                      className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs transition-colors"
+                      onClick={() => handleSaveTags(snippet.id, snippet)}
+                    >Save</button>
+                    <button
+                      className="px-2 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-xs transition-colors"
+                      onClick={handleCancelEdit}
+                    >Cancel</button>
+                  </div>
+                ) : (
+                  // Static tags display
+                  <div className="flex items-center gap-2 flex-wrap cursor-pointer" onClick={() => handleEditTags(snippet)}>
+                    {snippet.tags && snippet.tags.map((tag, index) => (
+                      <span key={tag} className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${tagColors[index % tagColors.length]}`}>
+                        <Tag className="w-3 h-3" />{tag}
+                      </span>
+                    ))}
+                    {/* Add a prompt to click to edit if no tags exist */}
+                    {(!snippet.tags || snippet.tags.length === 0) && (
+                       <span className="text-xs text-gray-400 italic">Click to add tags</span>
+                    )}
+                  </div>
+                )}
               </div>
+
               <div className="flex items-center text-xs text-gray-500 gap-4">
                 <span className="flex items-center gap-1"><CalendarDays className="w-3 h-3" /> Created: {snippet.createdAt}</span>
                 {/* Display updated date instead of last used */}
                 {snippet.updatedAt && (
-                  <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> Updated: {snippet.updatedAt}</span>
+                  <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> Last Used: {snippet.updatedAt}</span>
                 )}
                 {/* Display copy count */}
                 {snippet.copyCount !== undefined && (

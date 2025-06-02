@@ -79,4 +79,27 @@ public class SnippetServiceImpl implements SnippetService {
             throw new MyCustomeException("Snippet with ID " + id + " not found or failed to update copy count.");
         }
     }
+
+    @Override
+    public ResponseModel<String> updateSnippet(Integer id, Snippet updatedSnippet) throws MyCustomeException {
+        // Ensure the ID in the path matches the ID in the request body (optional but good practice)
+        if (!id.equals(updatedSnippet.getId())) {
+            throw new MyCustomeException("Snippet ID in path does not match ID in request body.");
+        }
+
+        // Get the logged-in user's email from the security context
+        String userEmail = securityUtils.getLoggedInUserEmail();
+
+        // Call the repository to update the snippet
+        int result = snippetRepository.update(updatedSnippet, userEmail);
+
+        if (result > 0) {
+            ResponseModel<String> response = new ResponseModel<>();
+            response.setResultType(ResponseType.SUCCESS);
+            response.setData("Snippet updated successfully.");
+            return response;
+        } else {
+            throw new MyCustomeException("Snippet with ID " + id + " not found or failed to update.");
+        }
+    }
 } 

@@ -1,6 +1,6 @@
 -- Create the user table
 
-CREATE TABLE IF NOT EXISTS user (
+CREATE TABLE IF NOT EXISTS jdbc.user (
     u_id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     bio TEXT,

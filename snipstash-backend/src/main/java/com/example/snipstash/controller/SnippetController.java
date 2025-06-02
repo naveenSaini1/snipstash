@@ -40,4 +40,10 @@ public class SnippetController {
         ResponseModel<String> response = snippetService.increaseSnippetCopyCount(id);
         return ResponseEntity.ok(response);
     }
+
+    @PutMapping("/update/{id}")
+    public ResponseEntity<ResponseModel<String>> updateSnippet(@PathVariable Integer id, @RequestBody Snippet updatedSnippet) throws MyCustomeException {
+        ResponseModel<String> response = snippetService.updateSnippet(id, updatedSnippet);
+        return ResponseEntity.ok(response);
+    }
 }

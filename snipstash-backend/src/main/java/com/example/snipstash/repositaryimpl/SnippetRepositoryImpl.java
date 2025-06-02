@@ -89,6 +89,21 @@ public class SnippetRepositoryImpl implements SnippetRepository {
         return jdbcTemplate.update(sql, Timestamp.valueOf(LocalDateTime.now()), id);
     }
 
+    @Override
+    public int update(Snippet snippet, String userEmail) {
+        String sql = sqlConstants.UPDATE_SNIPPET;
+        return jdbcTemplate.update(sql,
+                snippet.getTitle(),
+                snippet.getLanguage(),
+                snippet.getCode(),
+                snippet.getTags(),
+                Timestamp.valueOf(LocalDateTime.now()), // updatedAt
+                snippet.getFolderId(),
+                snippet.getId(),
+                userEmail // Add userEmail to the WHERE clause for security
+        );
+    }
+
     private static class SnippetRowMapper implements RowMapper<Snippet> {
         @Override
         public Snippet mapRow(ResultSet rs, int rowNum) throws SQLException {

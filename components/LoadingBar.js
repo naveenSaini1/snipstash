@@ -5,9 +5,9 @@ import React from 'react';
  */
 function LoadingBar() {
   return (
-    <div className="fixed top-0 left-0 right-0 h-1 bg-blue-500 z-[9999]">
-      {/* You can add animation here using CSS or a library */}
-      <div className="h-full bg-blue-300 animate-pulse"></div>
+    <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex justify-center items-center z-[100]">
+      {/* Simple CSS Spinner */}
+      <div className="w-12 h-12 border-4 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
     </div>
   );
 }

@@ -61,7 +61,12 @@ export const UserContextProvider = ({ children }) => {
       })
 
       console.log('Registration successful:', result)
-
+      if(result==null){
+        
+        setUser(null)
+        router.push(ROUTE_HOME);
+        return { success: false, error: "An unexpected error occurred during registration." }
+      }
       setItem(LOCAL_STORAGE_USER_KEY, result)
 
       setUser(result)
@@ -73,6 +78,7 @@ export const UserContextProvider = ({ children }) => {
     } catch (error) {
       console.error('Error during registration:', error)
       setLoading(false)
+      router.push(ROUTE_HOME)
       return { success: false, error: error.message || 'An unexpected error occurred during registration.' }
     }
   }
@@ -92,7 +98,11 @@ export const UserContextProvider = ({ children }) => {
         method: 'POST',
         body: obj,
       })
-      if (result == null) return;
+      if(result==null){
+        setUser(null)
+        router.push(ROUTE_HOME);
+        return { success: false, error: "An unexpected error occurred during registration." }
+      }
       console.log('Login successful:', result)
 
       setItem(LOCAL_STORAGE_USER_KEY, result)
@@ -105,6 +115,8 @@ export const UserContextProvider = ({ children }) => {
       return { success: true, user: result }
     } catch (error) {
       console.error('Error during login:', error)
+      router.push(ROUTE_HOME)
+
       // setLoading(false)
       return { success: false, error: error.message || 'An unexpected error occurred during login.' }
     }
@@ -136,6 +148,7 @@ export const UserContextProvider = ({ children }) => {
       setUser(null)
       setIsLoggedIn(false)
       setLoading(false)
+      router.push(ROUTE_HOME)
       return false
     }
     
@@ -174,6 +187,7 @@ export const UserContextProvider = ({ children }) => {
       // fetchApi has already handled the error and updated state
       // No further action needed here
       setLoading(false);
+      router.push(ROUTE_HOME)
       return false;
     }
   }
@@ -186,14 +200,14 @@ export const UserContextProvider = ({ children }) => {
     register,
     logout,
     checkAuthStatus,
+    setLoading,
   }), [user, isLoggedIn, loading, login, register, logout, checkAuthStatus])
 
-  if (loading) {
-    return <LoadingBar />
-  }
+ 
 
   return (
     <UserContext.Provider value={contextValue}>
+      {loading && <LoadingBar />}
       {children}
     </UserContext.Provider>
   )

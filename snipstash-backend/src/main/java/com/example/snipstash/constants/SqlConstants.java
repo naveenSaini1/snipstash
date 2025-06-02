@@ -41,5 +41,8 @@ public class SqlConstants {
     @Value("${UPDATE_SNIPPET_COPY_COUNT}")
     public		 String 			UPDATE_SNIPPET_COPY_COUNT;
    
+    @Value("${UPDATE_SNIPPET}")
+    public		 String 			UPDATE_SNIPPET;
+   
  }
 
