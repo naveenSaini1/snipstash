@@ -1,5 +1,5 @@
-import DashboardPage from "../../pages/dashboard/DashboardPage"
 import { DashboardContextProvider } from '@/contextApi/DashboardContext';
+import { DashboardPage } from '@/screens/dashboard/DashboardPage';
 
 export default function DashboardRoutePage() {
   return (

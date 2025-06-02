@@ -1,4 +1,4 @@
-import RegisterPage from "../../pages/Register/RegisterPage"
+import RegisterPage from "../../screens/Register/RegisterPage"
 
 export default function RegisterRoutePage() {
   return <RegisterPage />

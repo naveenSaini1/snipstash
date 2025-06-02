@@ -1,4 +1,4 @@
-import LoginPage from "../../pages/Login/LoginPage"
+import LoginPage from "../../screens/Login/LoginPage"
 
 export default function LoginRoutePage() {
   return <LoginPage />

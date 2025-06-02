@@ -13,7 +13,7 @@ import { ROUTE_HOME } from '@/constants/endpoints'
 import LoadingBar from '@/components/LoadingBar'
 import Header from "./components/Header";
 
-export default function DashboardPage() {
+export const DashboardPage = () => {
   // Use context to access dashboard state and functions
   const {
     userFolders,
